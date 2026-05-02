@@ -1,0 +1,6 @@
+{
+  "name": "Drive File",
+  "description": "A Telegram-integrated cloud storage manager using Telegram Topics as backend storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
