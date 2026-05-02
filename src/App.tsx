@@ -239,13 +239,19 @@ export default function App() {
   };
 
   // --- Computed ---
+  const [viewMode, setViewMode] = useState<'dashboard' | 'allFiles'>('dashboard');
+
   const filteredFiles = useMemo(() => {
     return files.filter(f => {
       const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFolder = showOnlyFavorites ? f.isFavorite : (selectedFolderId ? f.folderId === selectedFolderId : true);
-      return matchesSearch && matchesFolder;
-    }).sort((a, b) => b.date - a.date);
-  }, [files, searchTerm, selectedFolderId, showOnlyFavorites]);
+      if (showOnlyFavorites) return f.isFavorite && matchesSearch;
+      
+      const matchesFolder = selectedFolderId ? f.folderId === selectedFolderId : true;
+      const matchesMode = viewMode === 'allFiles' || selectedFolderId !== null;
+      
+      return matchesSearch && matchesFolder && matchesMode;
+    }).sort((acc, b) => b.date - acc.date);
+  }, [files, searchTerm, selectedFolderId, showOnlyFavorites, viewMode]);
 
   const totalStorage = useMemo(() => files.reduce((acc, f) => acc + f.size, 0), [files]);
 
@@ -300,13 +306,23 @@ export default function App() {
         <div className="px-4 mt-8 flex-1 overflow-y-auto space-y-8">
           <nav className="space-y-1">
             <button
-              onClick={() => { setSelectedFolderId(null); setShowOnlyFavorites(false); if(window.innerWidth < 1024) setIsSidebarOpen(false); }}
+              onClick={() => { setSelectedFolderId(null); setViewMode('dashboard'); setShowOnlyFavorites(false); if(window.innerWidth < 1024) setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
-                !selectedFolderId && !showOnlyFavorites ? 'bg-white/10 text-white shadow-inner' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                !selectedFolderId && !showOnlyFavorites && viewMode === 'dashboard' ? 'bg-white/10 text-white shadow-inner' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <FolderIcon size={18} />
+              <span>হোম (ফোল্ডার সমূহ)</span>
+            </button>
+
+            <button
+              onClick={() => { setSelectedFolderId(null); setViewMode('allFiles'); setShowOnlyFavorites(false); if(window.innerWidth < 1024) setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+                viewMode === 'allFiles' && !selectedFolderId ? 'bg-white/10 text-white shadow-inner' : 'text-gray-400 hover:bg-white/5 hover:text-white'
               }`}
             >
               <HardDrive size={18} />
-              <span>All Files</span>
+              <span>সব ফাইল</span>
             </button>
 
             <button
@@ -316,21 +332,13 @@ export default function App() {
               }`}
             >
               <Star size={18} className={showOnlyFavorites ? 'fill-brand-accent' : ''} />
-              <span>Starred</span>
+              <span>স্টার করা</span>
             </button>
           </nav>
 
           <div>
             <div className="flex items-center justify-between px-4 mb-4">
-              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Collections</span>
-              <motion.button 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleCreateFolder}
-                className="w-6 h-6 flex items-center justify-center bg-brand-accent/20 rounded-lg text-brand-accent hover:bg-brand-accent hover:text-white transition-all shadow-lg shadow-brand-accent/10"
-              >
-                <Plus size={14} />
-              </motion.button>
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">ফোল্ডার লিস্ট</span>
             </div>
 
             <div className="space-y-1">
@@ -344,12 +352,12 @@ export default function App() {
                 >
                   <FolderIcon size={18} className={selectedFolderId === folder.id ? 'text-white' : 'text-gray-500 group-hover:text-brand-accent'} />
                   <span className="truncate flex-1 text-left">{folder.name}</span>
-                  <ChevronRight size={14} className={`opacity-0 group-hover:opacity-100 transition-opacity ${selectedFolderId === folder.id ? 'opacity-100' : ''}`} />
                 </button>
               ))}
             </div>
           </div>
         </div>
+
 
         <div className="p-6 border-t border-white/5 space-y-6">
           <div className="bg-white/5 rounded-2xl p-4">
@@ -517,21 +525,62 @@ export default function App() {
                   className="flex items-center gap-3 mb-2"
                 >
                    <div className="w-10 h-10 bg-brand-accent/10 rounded-xl flex items-center justify-center text-brand-accent font-bold">
-                      {showOnlyFavorites ? <Star size={20} className="fill-current" /> : (selectedFolderId ? <FolderIcon size={20} /> : <HardDrive size={20} />)}
+                      {showOnlyFavorites ? <Star size={20} className="fill-current" /> : (selectedFolderId ? <FolderIcon size={20} /> : (viewMode === 'dashboard' ? <Menu size={20} /> : <HardDrive size={20} />))}
                    </div>
                    <span className="text-xs font-black text-brand-accent uppercase tracking-widest">
-                     {showOnlyFavorites ? "Favorites" : (selectedFolderId ? "Collection" : "Storage")}
+                     {showOnlyFavorites ? "Favorites" : (selectedFolderId ? "Collection" : (viewMode === 'dashboard' ? "ড্যাশবোর্ড" : "সব ফাইল"))}
                    </span>
                 </motion.div>
                 <h2 className="text-4xl font-black text-brand-deep font-display tracking-tight leading-none">
-                  {showOnlyFavorites ? 'Starred Items' : (selectedFolderId ? currentFolder?.name : 'Cloud Dashboard')}
+                  {showOnlyFavorites ? 'স্টার করা ফাইল' : (selectedFolderId ? currentFolder?.name : (viewMode === 'dashboard' ? 'ফোল্ডার গুলো' : 'সব ফাইল'))}
                 </h2>
                 <p className="text-gray-400 text-sm mt-3 flex items-center gap-2">
                   <Info size={14} className="text-brand-accent" />
-                  You have {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} in this view
+                  {viewMode === 'dashboard' && !selectedFolderId ? `${folders.length} টি ফোল্ডার রয়েছে` : `এখানে ${filteredFiles.length} টি ফাইল রয়েছে`}
                 </p>
               </div>
             </header>
+
+            {/* Dashboad Folder Grid */}
+            {viewMode === 'dashboard' && !selectedFolderId && !showOnlyFavorites && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+                 {/* Create Folder Card */}
+                 <motion.button
+                   whileHover={{ scale: 1.02, y: -4 }}
+                   whileTap={{ scale: 0.98 }}
+                   onClick={handleCreateFolder}
+                   className="bg-brand-accent/5 border-2 border-dashed border-brand-accent/30 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 group hover:bg-brand-accent/10 transition-all aspect-[5/3]"
+                 >
+                    <div className="w-12 h-12 bg-brand-accent rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-accent/20">
+                       <Plus size={24} />
+                    </div>
+                    <span className="font-black text-brand-accent text-sm uppercase tracking-widest">নতুন ফোল্ডার তৈরি করুন</span>
+                 </motion.button>
+
+                 {folders.map(folder => (
+                   <motion.div
+                     key={folder.id}
+                     whileHover={{ scale: 1.02, y: -4 }}
+                     className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:border-brand-accent/20 transition-all cursor-pointer group flex flex-col justify-between aspect-[5/3]"
+                     onClick={() => setSelectedFolderId(folder.id)}
+                   >
+                      <div className="flex justify-between items-start">
+                         <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-brand-accent group-hover:bg-brand-accent group-hover:text-white transition-all">
+                            <FolderIcon size={24} />
+                         </div>
+                         <ChevronRight size={20} className="text-gray-300 group-hover:text-brand-accent transition-colors" />
+                      </div>
+                      <div>
+                         <h4 className="font-bold text-brand-deep text-lg leading-tight truncate mb-1">{folder.name}</h4>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                           {files.filter(f => f.folderId === folder.id).length} Files
+                         </p>
+                      </div>
+                   </motion.div>
+                 ))}
+              </div>
+            )}
+
 
             {/* Uploading Status Overlay */}
             <AnimatePresence>
